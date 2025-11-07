@@ -9,9 +9,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
         xintegrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/acolorpicker@1.1.12/dist/acolorpicker.min.css" />
-<script src="https://cdn.jsdelivr.net/npm/acolorpicker@1.1.12/dist/acolorpicker.min.js"></script>
-
 
     <style>
         /* Custom styles for a clean, full-screen mobile experience */
@@ -452,11 +449,6 @@
             transition: transform 2s ease-in-out;
         }
 
-        .picker {
-  display: inline-block;
-  --box-shadow: 0 2px 2px 0 rgba(0,0,0,0.16), 0 0 0 1px rgba(3, 1, 1, 0.08);
-}
-
 
         #leftColumn {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -636,15 +628,7 @@
                 <!-- Custom Color Selector Button -->
                 <div id="customColorBox" class="color-selector-box" tabindex="0">
                     <span class="color-text">Choose Color</span>
-
-                    <div class="picker" 
-                         acp-color="#cddc39"
-                         acp-show-rgb="no"
-                         acp-show-hsl="no"
-                         acp-show-hex="yes"
-                         acp-palette="PALETTE_MATERIAL_500">
-                    </div>
-
+                    <input type="color" id="nativeColorPicker" value="#FFFFFF" aria-label="Custom Color Selector">
                 </div>
             </div>
         </div>
@@ -708,41 +692,6 @@
 
 
     <script>
-
-window.addEventListener('DOMContentLoaded', () => {
-  const colorPicker = AColorPicker.from('.picker')
-    .on('change', (picker, color) => {
-      // Update frame color on change
-      const targetFrameId = frameDesignModal.getAttribute('data-target-frame');
-      const activeFrame = frames.find(f => f.id === targetFrameId);
-      if (activeFrame) {
-        activeFrame.design.color = color.hex;
-        setActiveSwatch(color.hex);
-        drawActiveFrame(activeFrame);
-      }
-    });
-  
-  // Set initial color when opening design modal
-  frameDesignBtn.addEventListener('click', () => {
-    const targetFrameId = frameOptionsModal.getAttribute('data-target-frame');
-    const activeFrame = frames.find(f => f.id === targetFrameId);
-    if (activeFrame) {
-      colorPicker.setColor(activeFrame.design.color);
-    }
-  });
-});
-
-
-// Optional: set initial color of the picker when Frame Design modal opens
-frameDesignBtn.addEventListener('click', () => {
-  const targetFrameId = frameOptionsModal.getAttribute('data-target-frame');
-  const activeFrame = frames.find(f => f.id === targetFrameId);
-  if (activeFrame) {
-    // Set the picker color to the current frame color
-    colorPicker.setColor(activeFrame.design.color);
-  }
-});
-
         
         // Define the new color palette
         const FRAME_COLORS = [
@@ -1569,5 +1518,3 @@ frameDesignBtn.addEventListener('click', () => {
 </body>
 
 </html>
-
-
