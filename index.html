@@ -1,0 +1,1522 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Camera Preview Mockup (Frame Customization)</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+        xintegrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+
+
+    <style>
+        /* Custom styles for a clean, full-screen mobile experience */
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #viewportContainer {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #1f2937;
+        }
+
+        #cameraFeed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+        }
+
+        /* --- DYNAMIC FRAME STYLES --- */
+        .art-frame {
+            position: absolute;
+            z-index: 20;
+            touch-action: none;
+            transform-origin: center center;
+            cursor: grab;
+            /* Border properties will be set dynamically via JS */
+            border-style: solid;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            background-color: transparent; 
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            
+            pointer-events: auto;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .art-frame.cursor-grabbing {
+            cursor: grabbing;
+        }
+
+        .art-frame.square-frame {
+            width: 300px;
+            height: 300px;
+        }
+
+        .art-frame.rectangle-frame {
+            width: 400px;
+            height: 300px;
+        }
+        
+        /* --- CONTROLS AND BUTTONS --- */
+
+        #controls {
+            width: 100%;
+            justify-content: center;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 10;
+            padding: 10px 20px;
+            border-radius: 12px;
+        }
+
+        /* Capture Button Styles */
+        #captureBtn {
+            width: 70px;
+            height: 70px;
+            background-color: transparent;
+            border-radius: 50%;
+            border: 4px solid white;
+            position: relative;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            transition: border-color 0.3s ease;
+        }
+
+        #captureBtn::before {
+            content: "";
+            width: 40px;
+            height: 40px;
+            background-color: white;
+            border-radius: 50%;
+            display: block;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+            transition: opacity 0.3s ease;
+        }
+
+
+        #captureBtn.loader {
+            border-color: transparent;
+            background-color: transparent;
+            position: relative;
+            pointer-events: none;
+        }
+
+        #captureBtn.loader::before {
+            content: "";
+            box-sizing: border-box;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 40px;
+            height: 40px;
+            margin-top: -20px;
+            margin-left: -20px;
+            border-radius: 50%;
+            border: 4px solid white;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+
+        #addStickerBtn {
+            position: absolute;
+            top: 30px;
+            right: 20px;
+            z-index: 30;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(31, 41, 55, 0.6);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #addStickerBtn:hover {
+            background-color: rgba(31, 41, 55, 0.8);
+        }
+
+        #addStickerBtn svg {
+            color: white;
+            width: 24px;
+            height: 24px;
+        }
+
+        /* --- MODAL STYLES --- */
+        .modal-base {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            /* Standardized size for consistent height/width */
+            max-width: 300px;
+            transform: translate(-50%, -50%);
+            z-index: 50;
+            background: rgba(31, 41, 55, 0.95);
+            padding: 25px; /* slightly smaller padding */
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px; /* slightly smaller gap */
+            text-align: center;
+        }
+
+        .modal-header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .modal-back-icon {
+            cursor: pointer;
+            color: #d1d5db; 
+            font-size: 1.5rem;
+            line-height: 1;
+            transition: color 0.2s;
+            margin-right: 15px;
+        }
+        
+        .modal-back-icon:hover {
+            color: white;
+        }
+        
+        .modal-title-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-grow: 1;
+        }
+
+        .modal-base h3 {
+            color: white;
+            font-size: 1.4rem;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .modal-close-icon {
+            cursor: pointer;
+            color: #d1d5db; 
+            font-size: 1.5rem;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+        
+        .modal-close-icon:hover {
+            color: white;
+        }
+
+
+        .modal-btn {
+            padding: 12px 25px; /* smaller padding for compact look */
+            font-size: 1rem;
+            font-weight: bold;
+            border: 2px solid #fff;
+            background-color: transparent;
+            color: #fff;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+            width: 250px;
+            text-align: center;
+        }
+
+        .modal-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            transform: scale(1.02);
+        }
+        
+        #deleteFrameBtn {
+            border-color: #f72585;
+            color: #f72585;
+        }
+        
+        #deleteFrameBtn:hover {
+            background-color: rgba(247, 37, 133, 0.1);
+        }
+        
+        /* Frame Design Specific Styles */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 250px;
+            margin-bottom: 5px;
+        }
+
+        .control-group label {
+            color: white;
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-align: left;
+        }
+
+        .control-group input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #d3d3d3;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+            border-radius: 4px;
+        }
+
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #7209b7;
+            cursor: pointer;
+        }
+
+        /* NEW COLOR PICKER STYLES */
+        .color-swatch-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            width: 100%;
+            padding: 5px 0;
+            margin-bottom: 10px;
+        }
+        
+        .color-swatch {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.1s, border-color 0.2s;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.1);
+        }
+        
+        .color-swatch.active {
+            border-color: #4CC9F0;
+            border-width: 3px;
+            transform: scale(1.05);
+        }
+        
+        /* CUSTOM COLOR SELECTOR BOX */
+        .color-selector-box {
+            position: relative;
+            width: 100%;
+            max-width: 250px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            background-color: #374151; /* Darker than modal for contrast */
+            border: 2px solid #6b7280;
+            cursor: pointer;
+            overflow: hidden; 
+            margin-top: 5px;
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+
+        .color-selector-box:hover {
+            border-color: #4CC9F0;
+            background-color: #4b5563;
+        }
+
+        .color-selector-box .color-text {
+            color: white;
+            font-weight: 600;
+            z-index: 2; 
+            pointer-events: none; 
+        }
+        
+        .color-selector-box input[type="color"] {
+            /* Full overlay, transparent input to trigger native picker */
+            opacity: 0; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            cursor: pointer;
+        }
+
+        /* --- END MODAL STYLES --- */
+
+
+        #message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            text-align: center;
+            padding: 1rem;
+            background-color: rgba(247, 37, 133, 0.8);
+            border-radius: 0.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            z-index: 50;
+            display: none;
+        }
+        
+        /* The rest of the CSS for desktop demo is left below, but will be removed in a future step if not needed */
+
+        #phone {
+            width: 300px;
+            height: 600px;
+            border: 15px solid #333;
+            border-radius: 40px;
+            overflow: hidden;
+            position: relative;
+            margin: 50px auto;
+            margin-top: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            background: #000;
+            transition: transform 3s ease-in-out;
+            transform-origin: center center;
+        }
+
+        #imageContainer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 110vh;
+            width: 100%;
+            transition: transform 8s ease-in-out;
+        }
+
+        #imageContainer img {
+            height: 100%;
+            width: 130%;
+            object-fit: cover;
+            display: block;
+            transition: transform 3s ease-in-out;
+            transform-origin: center center;
+        }
+
+        #wallArt {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background-position: center;
+            background-size: contain;
+            background-repeat: no-repeat;
+            transform: scale(0.4) translateY(-20%);
+            transform-origin: center center;
+            transition: transform 2s ease-in-out;
+        }
+
+
+        #leftColumn {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: black;
+            padding: 20px;
+        }
+
+        .highlighted-text {
+            font-weight: 900;
+            font-size: 1.8rem;
+            color: #7209b7;
+            background: linear-gradient(90deg, #f72585, #7209b7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 15px;
+            margin-top: 0.4in;
+        }
+
+        .light-text {
+            font-weight: 500;
+            font-size: 1rem;
+            color: #181818;
+            margin-bottom: 0.25in;
+            margin-top: 0.3in;
+        }
+
+        .qr-code {
+            width: 180px;
+            height: 180px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(245, 245, 245, 0.3);
+            margin-bottom: 20px;
+        }
+
+        .link-text {
+            font-size: 18px;
+            font-weight: 600;
+            color: #0e46ad;
+            margin-bottom: 8px;
+            margin-top: 10px;
+        }
+
+        .link-box {
+            width: 100%;
+            max-width: 450px;
+            padding: 10px 15px;
+            font-size: 1rem;
+            font-weight: 500;
+            border: 1px solid #0e46ad;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+            color: #0e46ad;
+        }
+
+        @media (min-width: 1025px) {
+            body {
+                background: #f6f4f7;
+                overflow-x: auto;
+                overflow-y: auto;
+            }
+        }
+
+        #page-loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .loader-circle {
+            border: 6px solid #e0e0e0;
+            border-top: 6px solid rgb(223, 86, 223);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        #resetTip {
+            position: absolute;
+            top: 120px;
+            padding: 0.5rem;
+            background-color: rgba(31, 41, 55, 0.7);
+            color: white;
+            font-size: 0.75rem;
+            border-radius: 9999px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+                0 4px 6px -4px rgba(0, 0, 0, 0.1);
+            z-index: 30;
+            opacity: 0.7;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="viewportContainer">
+
+        <!-- Camera Feed Element -->
+        <video id="cameraFeed" autoplay playsinline muted></video>
+
+        <!-- Message/Error Display -->
+        <div id="message">
+            Awaiting camera permission...
+        </div>
+
+        <!-- Hidden Tip/Reset Indicator -->
+        <div id="resetTip">
+            Drag, Pinch, or Double-Tap to Reset
+        </div>
+
+        <!-- 1. Frame Selector Modal (For Adding New Frames) -->
+        <div id="frameSelectorModal" class="modal-base">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <h3>Choose a Frame Shape</h3>
+                </div>
+                <span class="modal-close-icon" onclick="document.getElementById('frameSelectorModal').style.display='none'; document.getElementById('addStickerBtn').style.display='flex';">
+                    &times;
+                </span>
+            </div>
+            <div style="display: flex; gap: 15px; flex-direction: column;">
+                <button class="modal-btn" data-shape="square">Square (1:1)</button>
+                <button class="modal-btn" data-shape="rectangle">Rectangle (4:3)</button>
+            </div>
+        </div>
+        
+        <!-- 2. Frame Options Modal (Primary Frame Menu) -->
+        <div id="frameOptionsModal" class="modal-base">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <h3>Frame Options</h3>
+                </div>
+                <span id="closeOptionsIcon" class="modal-close-icon">&times;</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 15px; ">
+                <button id="frameDesignBtn" class="modal-btn" style="border-color: #00bcd4; color: #00bcd4;">Frame Design</button>
+                <button id="uploadImageBtn" class="modal-btn">Upload Image</button>
+                <button id="removeImageBtn" class="modal-btn">Remove Image</button>
+                <button id="deleteFrameBtn" class="modal-btn">Delete Frame</button>
+            </div>
+        </div>
+
+        <!-- 3. Frame Design Modal (Customization Sub-Menu) -->
+        <div id="frameDesignModal" class="modal-base">
+            <div class="modal-header">
+                <span id="backToOptionsIcon" class="modal-back-icon">&larr;</span>
+                <div class="modal-title-group">
+                    <h3>Frame Design</h3>
+                </div>
+                <span id="closeDesignIcon" class="modal-close-icon">&times;</span>
+            </div>
+            
+            <!-- Controls -->
+            <div class="control-group">
+                <label for="frameWidthSlider">Frame Width: <span id="widthValue">10</span>px</label>
+                <input type="range" id="frameWidthSlider" min="1" max="50" value="10">
+            </div>
+
+            <div class="control-group">
+                <label>Frame Color:</label>
+                <!-- Hidden input to hold the color value for logic -->
+                <input type="hidden" id="frameColorInput" value="#FFFFFF">
+                
+                <!-- Color Swatches - Generated by JS -->
+                <div id="colorSwatchContainer" class="color-swatch-container">
+                    <!-- Swatches will be generated here -->
+                </div>
+                
+                <!-- Custom Color Selector Button -->
+                <div id="customColorBox" class="color-selector-box" tabindex="0">
+                    <span class="color-text">Choose Color</span>
+                    <input type="color" id="nativeColorPicker" value="#FFFFFF" aria-label="Custom Color Selector">
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Hidden File Input for Image Uploads -->
+        <input type="file" id="imageFileInput" accept="image/*" style="display:none;">
+
+
+        <!-- Add Sticker Button (Plus Icon) -->
+        <div id="addStickerBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="feather feather-plus-circle">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="16"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+            </svg>
+        </div>
+
+
+        <!-- Capture Button - Displayed when the first frame is added -->
+        <div id="controls">
+            <button id="captureBtn" aria-label="Capture Picture" style="display:none;"></button>
+        </div>
+
+    </div>
+
+
+    <!-- Hidden Canvas for Image Processing/Capture -->
+    <canvas id="captureCanvas" style="display:none;"></canvas>
+
+
+
+    <!-- Desktop Alert/Demo Section (Unmodified) -->
+    <div class="container mt-3" id="desktopAlert">
+        <div class="row" style="padding:15px; background:#fff;">
+            <div class="col-6 text-center" id="leftColumn">
+                <h2 class="highlighted-text">For better experience, open it in phone or tablet</h2>
+                <p class="light-text">Scan QR code to open this in phone or tablet</p>
+                <img src="https://previews.123rf.com/images/foxindustry/foxindustry1310/foxindustry131000007/23317483-sample-qr-code-ready-to-scan-with-smart-phone.jpg"
+                    alt="Scan QR Code" class="qr-code" />
+                <p class="link-text">or you can use this link</p>
+                <input type="text" readonly value="https://example.com/your-link" class="link-box" />
+            </div>
+            <div class="col-6">
+                <div id="phone">
+                    <div id="imageContainer">
+                        <img id="bedroomImage" src="" alt="Bedroom" />
+                    </div>
+                    <div id="wallArt"></div>
+                    <div id="phonecontrols">
+                        <div id="democaptureBtn"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
+
+    <script>
+        
+        // Define the new color palette
+        const FRAME_COLORS = [
+            '#FFFFFF', // White
+            '#000000', // Black
+            '#333333', // Dark Gray
+            '#666666', // Medium Gray
+            '#999999', // Light Gray
+            '#CCCCCC', // Very Light Gray
+            '#654321', // Dark Brown
+            '#A0522D', // Sienna
+            '#CD853F', // Peru
+            '#F72585', // Accent Pink
+            '#4CC9F0', // Accent Blue
+            '#9D4EDD', // Accent Purple
+        ];
+
+
+        // Device check: mobile/tablet if <= 1024px width, else desktop
+        function getDeviceType() {
+            return (window.innerWidth <= 1024) ? 'mobile' : 'desktop';
+        }
+
+        function handleConditionalElements() {
+            const viewportContainer = document.getElementById('viewportContainer');
+            const desktopAlert = document.getElementById('desktopAlert');
+
+            if (getDeviceType() === 'desktop') {
+                if (viewportContainer) viewportContainer.remove();
+            } else {
+                if (desktopAlert) desktopAlert.remove();
+                openCamera();
+            }
+        }
+
+        handleConditionalElements();
+
+
+        function openCamera() {
+
+            const MAX_FRAMES = 10;
+            const video = document.getElementById('cameraFeed');
+            const message = document.getElementById('message');
+            const resetTip = document.getElementById('resetTip');
+            const addStickerBtn = document.getElementById('addStickerBtn');
+            const frameSelectorModal = document.getElementById('frameSelectorModal');
+            const frameOptionBtns = document.querySelectorAll('#frameSelectorModal .modal-btn');
+            const frameOptionsModal = document.getElementById('frameOptionsModal');
+            const frameDesignModal = document.getElementById('frameDesignModal'); 
+            const frameDesignBtn = document.getElementById('frameDesignBtn'); 
+            const captureBtn = document.getElementById('captureBtn');
+            const viewportContainer = document.getElementById('viewportContainer');
+            const imageFileInput = document.getElementById('imageFileInput');
+            const uploadImageBtn = document.getElementById('uploadImageBtn');
+            const removeImageBtn = document.getElementById('removeImageBtn');
+            const deleteFrameBtn = document.getElementById('deleteFrameBtn');
+            const closeOptionsIcon = document.getElementById('closeOptionsIcon');
+            
+            // Frame Design Controls
+            const frameWidthSlider = document.getElementById('frameWidthSlider');
+            const widthValueSpan = document.getElementById('widthValue');
+            const frameColorInput = document.getElementById('frameColorInput'); 
+            const colorSwatchContainer = document.getElementById('colorSwatchContainer');
+            const nativeColorPicker = document.getElementById('nativeColorPicker'); // The hidden input[type=color]
+            const backToOptionsIcon = document.getElementById('backToOptionsIcon');
+            const closeDesignIcon = document.getElementById('closeDesignIcon');
+
+
+            // Canvas elements for capturing
+            const captureCanvas = document.getElementById('captureCanvas');
+            const ctx = captureCanvas.getContext('2d');
+
+            // --- State Management for Multiple Frames ---
+            let frames = []; 
+            let activeFrameId = null; 
+            let longPressTargetId = null; 
+            let touchHoldTimer = null; 
+            let startX = 0; 
+            let startY = 0; 
+            let longPressStartX = 0; 
+            let longPressStartY = 0; 
+            let activeBaseX = 0;
+            let activeBaseY = 0;
+            let activeBaseScale = 1;
+            let activeBaseRotation = 0;
+            const activePointers = new Map();
+            let initialDistance = null;
+            let initialAngle = null;
+            const LONG_PRESS_DURATION = 3000; 
+            const MOVEMENT_TOLERANCE = 10; 
+            
+            // Helper to show temporary messages
+            function showMessage(text, duration = 3000) {
+                message.textContent = text;
+                message.style.display = 'block';
+                setTimeout(() => message.style.display = 'none', duration);
+            }
+            
+            // --- Color Swatch/Picker Logic ---
+
+            // Function to generate and attach swatches
+            function generateSwatches() {
+                colorSwatchContainer.innerHTML = ''; // Clear existing
+                FRAME_COLORS.forEach(color => {
+                    const swatch = document.createElement('div');
+                    swatch.className = 'color-swatch';
+                    swatch.setAttribute('data-color', color);
+                    swatch.style.backgroundColor = color;
+                    colorSwatchContainer.appendChild(swatch);
+                });
+            }
+
+            // Function to manage active color swatch state
+            function setActiveSwatch(colorHex) {
+                // Ensure native picker value is synchronized (important when setting from swatch)
+                nativeColorPicker.value = colorHex;
+                
+                document.querySelectorAll('.color-swatch').forEach(swatch => {
+                    swatch.classList.remove('active');
+                    if (swatch.getAttribute('data-color').toUpperCase() === colorHex.toUpperCase()) {
+                        swatch.classList.add('active');
+                    }
+                });
+            }
+            
+            // Generate swatches on startup
+            generateSwatches();
+
+            // --- Camera Access ---
+            async function startCamera() {
+                showMessage('Awaiting camera permission...', 10000); 
+
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: 'environment',
+                            width: { ideal: 4096 },
+                            height: { ideal: 2160 }
+                        }
+                    });
+                    video.srcObject = stream;
+                    message.style.display = 'none';
+
+                    video.play().catch(e => console.error("Video play failed:", e));
+
+                } catch (err) {
+                    console.error("Error accessing camera: ", err);
+                    showMessage('Camera access denied or unavailable. Please enable permissions.', 0);
+                    video.style.display = 'none';
+                }
+            }
+            
+            // --- Frame Manipulation Helpers ---
+
+            const getActiveFrame = () => frames.find(f => f.id === activeFrameId);
+            
+            const updateFrameDOM = (frame) => {
+                const element = document.querySelector(`.art-frame[data-frame-id="${frame.id}"]`);
+                if (element) {
+                    element.style.transform = `translate(-50%, -50%) translateX(${frame.x}px) translateY(${frame.y}px) scale(${frame.scale}) rotate(${frame.rotation}deg)`;
+                    
+                    // Apply design properties
+                    element.style.borderColor = frame.design.color;
+                    element.style.borderWidth = `${frame.design.width}px`;
+
+                    if (frame.imageSrc) {
+                        element.style.backgroundImage = `url(${frame.imageSrc})`;
+                    } else {
+                        element.style.backgroundImage = 'none';
+                    }
+                }
+            };
+
+            function getPinchDetails() {
+                const pointers = Array.from(activePointers.values());
+                if (pointers.length < 2) return null;
+
+                const p1 = pointers[0];
+                const p2 = pointers[1];
+
+                const dx = p1.clientX - p2.clientX;
+                const dy = p1.clientY - p2.clientY;
+
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+                return { distance, angle };
+            }
+            
+            // --- Dynamic Frame Creation ---
+            function createFrame(shape) {
+                if (frames.length >= MAX_FRAMES) {
+                    showMessage(`Maximum of ${MAX_FRAMES} frames reached!`, 5000);
+                    return;
+                }
+
+                // 1. Create Data Object
+                const newFrameId = Date.now().toString() + Math.floor(Math.random() * 1000);
+                const newFrame = {
+                    id: newFrameId,
+                    type: shape,
+                    x: 0,
+                    y: 0,
+                    scale: 1,
+                    rotation: 0,
+                    imageSrc: null, 
+                    imageElement: null, 
+                    design: { 
+                        width: 10,
+                        color: '#FFFFFF' // Default White
+                    }
+                };
+                frames.push(newFrame);
+                
+                // 2. Create DOM Element
+                const frameElement = document.createElement('div');
+                frameElement.className = `art-frame ${shape}-frame`;
+                frameElement.setAttribute('data-frame-id', newFrameId);
+                
+                frameElement.addEventListener('pointerdown', pointerDown);
+                frameElement.addEventListener('click', frameClick); 
+
+                // 4. Append and Update
+                viewportContainer.appendChild(frameElement);
+                updateFrameDOM(newFrame);
+                
+                setActiveFrame(newFrameId);
+                
+                if (frames.length > 0) {
+                    captureBtn.style.display = 'flex';
+                }
+            }
+            
+            // --- Frame Deletion ---
+            function deleteFrame(frameId) {
+                const index = frames.findIndex(f => f.id === frameId);
+                if (index > -1) {
+                    const element = document.querySelector(`.art-frame[data-frame-id="${frameId}"]`);
+                    if (element) {
+                        element.remove();
+                    }
+                    frames.splice(index, 1);
+                    
+                    if (activeFrameId === frameId) {
+                        activeFrameId = null;
+                    }
+                    
+                    if (frames.length === 0) {
+                         captureBtn.style.display = 'none';
+                    }
+                    showMessage(`Frame ${frameId.slice(-3)} deleted.`, 1500);
+                }
+                frameOptionsModal.style.display = 'none';
+                frameDesignModal.style.display = 'none'; 
+            }
+            
+            // --- Image Management ---
+            function handleImageUpload(frameId, file) {
+                if (!file) return;
+
+                const frame = frames.find(f => f.id === frameId);
+                if (!frame) return;
+                
+                const fileUrl = URL.createObjectURL(file);
+                frame.imageSrc = fileUrl;
+
+                const img = new Image();
+                img.onload = () => {
+                    frame.imageElement = img;
+                    updateFrameDOM(frame);
+                    showMessage("Image uploaded successfully!", 2000);
+                };
+                img.onerror = () => {
+                    frame.imageSrc = null;
+                    frame.imageElement = null;
+                    showMessage("Error loading image.", 3000);
+                    updateFrameDOM(frame);
+                };
+                img.src = fileUrl;
+                
+                frameOptionsModal.style.display = 'none';
+            }
+            
+            function removeImage(frameId) {
+                const frame = frames.find(f => f.id === frameId);
+                if (frame) {
+                    if (frame.imageSrc) {
+                        frame.imageSrc = null;
+                        frame.imageElement = null;
+                        updateFrameDOM(frame);
+                        showMessage("Image removed.", 1500);
+                    } else {
+                         showMessage("No image to remove.", 1500);
+                    }
+                }
+                frameOptionsModal.style.display = 'none';
+            }
+
+
+            // --- Active Frame Management ---
+            function setActiveFrame(id) {
+                activeFrameId = id;
+            }
+            
+            function showFrameOptionsModal(frameId) {
+                 frameOptionsModal.setAttribute('data-target-frame', frameId);
+                 frameOptionsModal.style.display = 'flex';
+                 frameDesignModal.style.display = 'none'; 
+            }
+            
+            function clearTouchHoldTimer() {
+                clearTimeout(touchHoldTimer);
+                touchHoldTimer = null;
+                longPressTargetId = null;
+            }
+
+
+            // --- Frame Interaction Handlers ---
+
+            function pointerDown(e) {
+                if (frameSelectorModal.style.display === 'flex' || 
+                    frameOptionsModal.style.display === 'flex' || 
+                    frameDesignModal.style.display === 'flex') {
+                    return;
+                }
+                
+                const frameElement = e.currentTarget;
+                const frameId = frameElement.getAttribute('data-frame-id');
+                const activeFrame = frames.find(f => f.id === frameId);
+                
+                if (!activeFrame) return;
+
+                e.preventDefault();
+                frameElement.setPointerCapture(e.pointerId);
+                
+                setActiveFrame(frameId);
+
+                clearTouchHoldTimer(); 
+                longPressTargetId = frameId;
+                
+                startX = e.clientX; 
+                startY = e.clientY;
+                longPressStartX = e.clientX; 
+                longPressStartY = e.clientY; 
+                
+                touchHoldTimer = setTimeout(() => {
+                    if (longPressTargetId === frameId) {
+                        showFrameOptionsModal(frameId);
+                        frameElement.releasePointerCapture(e.pointerId);
+                        activePointers.clear();
+                        clearTouchHoldTimer();
+                    }
+                }, LONG_PRESS_DURATION);
+
+
+                activePointers.set(e.pointerId, {
+                    id: e.pointerId,
+                    clientX: e.clientX,
+                    clientY: e.clientY,
+                    isFirstPointer: activePointers.size === 0
+                });
+
+                if (activePointers.size === 1) {
+                    activeBaseX = activeFrame.x;
+                    activeBaseY = activeFrame.y;
+                    frameElement.classList.add('cursor-grabbing');
+
+                } else if (activePointers.size === 2) {
+                    clearTouchHoldTimer(); 
+                    const details = getPinchDetails();
+                    if (details) {
+                        initialDistance = details.distance;
+                        initialAngle = details.angle;
+                        activeBaseScale = activeFrame.scale;
+                        activeBaseRotation = activeFrame.rotation;
+                    }
+                    frameElement.classList.remove('cursor-grabbing');
+                }
+            }
+
+            function pointerMove(e) {
+                 if (!activeFrameId) return;
+
+                const activeFrame = getActiveFrame();
+                if (!activeFrame) return;
+
+                if (!activePointers.has(e.pointerId)) return;
+                e.preventDefault();
+
+                activePointers.get(e.pointerId).clientX = e.clientX;
+                activePointers.get(e.pointerId).clientY = e.clientY;
+
+                if (activePointers.size === 1) {
+                    const dx_cancel = e.clientX - longPressStartX;
+                    const dy_cancel = e.clientY - longPressStartY;
+                    
+                    if (Math.sqrt(dx_cancel * dx_cancel + dy_cancel * dy_cancel) > MOVEMENT_TOLERANCE) {
+                         clearTouchHoldTimer();
+                    }
+                    
+                    const dx_pan = e.clientX - startX;
+                    const dy_pan = e.clientY - startY;
+
+                    activeFrame.x = activeBaseX + dx_pan;
+                    activeFrame.y = activeBaseY + dy_pan;
+                    
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    activeBaseX = activeFrame.x;
+                    activeBaseY = activeFrame.y;
+
+                } else if (activePointers.size >= 2) {
+                    clearTouchHoldTimer(); 
+                    const currentDetails = getPinchDetails();
+                    if (currentDetails && initialDistance && initialAngle) {
+                        const scaleFactor = currentDetails.distance / initialDistance;
+                        activeFrame.scale = Math.min(2.5, Math.max(0.2, activeBaseScale * scaleFactor));
+
+                        const rotationDelta = currentDetails.angle - initialAngle;
+                        activeFrame.rotation = activeBaseRotation + rotationDelta;
+                    }
+                }
+                updateFrameDOM(activeFrame);
+            }
+
+            function pointerEnd(e) {
+                clearTouchHoldTimer();
+                
+                if (!activeFrameId) return;
+
+                const frameElement = document.querySelector(`.art-frame[data-frame-id="${activeFrameId}"]`);
+                if (!frameElement) return;
+
+                if (!activePointers.has(e.pointerId)) return;
+
+                activePointers.delete(e.pointerId);
+                frameElement.releasePointerCapture(e.pointerId);
+
+                if (activePointers.size < 2) {
+                    initialDistance = null;
+                    initialAngle = null;
+                }
+
+                if (activePointers.size === 1) {
+                    const remainingPointer = Array.from(activePointers.values())[0];
+                    startX = remainingPointer.clientX;
+                    startY = remainingPointer.clientY;
+                    activeBaseX = getActiveFrame().x;
+                    activeBaseY = getActiveFrame().y;
+                    frameElement.classList.add('cursor-grabbing');
+                }
+
+                if (activePointers.size === 0) {
+                    frameElement.classList.remove('cursor-grabbing');
+                }
+            }
+            
+            // --- Double-Tap to Reset Logic ---
+            let lastTap = {};
+            function frameClick(e) {
+                const frameId = e.currentTarget.getAttribute('data-frame-id');
+                const now = new Date().getTime();
+                const timesince = now - (lastTap[frameId] || 0);
+                
+                if ((timesince < 300) && (timesince > 0)) {
+                    const activeFrame = frames.find(f => f.id === frameId);
+                    if (!activeFrame) return;
+                    
+                    activeFrame.x = 0;
+                    activeFrame.y = 0;
+                    activeFrame.scale = 1;
+                    activeFrame.rotation = 0;
+                    updateFrameDOM(activeFrame);
+
+                    resetTip.textContent = `Frame ${frameId.slice(-3)} RESET!`;
+                    resetTip.style.display = 'block';
+                    setTimeout(() => {
+                        resetTip.textContent = "Drag, Pinch, or Double-Tap to Reset";
+                        resetTip.style.display = 'none';
+                    }, 1000);
+                }
+                lastTap[frameId] = now;
+            }
+
+
+            // --- Modal and File Logic ---
+            
+            // New Frame Selector
+            addStickerBtn.addEventListener('click', () => {
+                if (frames.length >= MAX_FRAMES) {
+                    showMessage(`Maximum of ${MAX_FRAMES} frames reached!`, 5000);
+                    return;
+                }
+                frameSelectorModal.style.display = 'flex';
+                addStickerBtn.style.display = 'none';
+            });
+
+            frameOptionBtns.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const shape = e.target.getAttribute('data-shape');
+                    frameSelectorModal.style.display = 'none';
+                    addStickerBtn.style.display = 'flex';
+                    createFrame(shape);
+                });
+            });
+            
+            // Frame Options Modal Actions
+            closeOptionsIcon.addEventListener('click', () => {
+                frameOptionsModal.style.display = 'none';
+                addStickerBtn.style.display = 'flex';
+            });
+            
+            deleteFrameBtn.addEventListener('click', () => {
+                const targetFrameId = frameOptionsModal.getAttribute('data-target-frame');
+                if (targetFrameId) {
+                    deleteFrame(targetFrameId);
+                }
+            });
+            
+            removeImageBtn.addEventListener('click', () => {
+                 const targetFrameId = frameOptionsModal.getAttribute('data-target-frame');
+                if (targetFrameId) {
+                    removeImage(targetFrameId);
+                }
+            });
+
+            uploadImageBtn.addEventListener('click', () => {
+                imageFileInput.click();
+            });
+            
+            imageFileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                const targetFrameId = frameOptionsModal.getAttribute('data-target-frame');
+                if (file && targetFrameId) {
+                    handleImageUpload(targetFrameId, file);
+                }
+                imageFileInput.value = ''; 
+            });
+            
+            // --- Frame Design Modal Transitions and Logic ---
+            
+            // Transition from Options Modal to Design Modal
+            frameDesignBtn.addEventListener('click', () => {
+                const targetFrameId = frameOptionsModal.getAttribute('data-target-frame');
+                const activeFrame = frames.find(f => f.id === targetFrameId);
+                
+                if (activeFrame) {
+                    frameOptionsModal.style.display = 'none';
+                    
+                    // 1. Load current design state into controls
+                    frameWidthSlider.value = activeFrame.design.width;
+                    widthValueSpan.textContent = activeFrame.design.width;
+                    frameColorInput.value = activeFrame.design.color;
+                    
+                    // 2. Set active swatch and native picker value
+                    setActiveSwatch(activeFrame.design.color);
+
+                    // 3. Show the design modal
+                    frameDesignModal.setAttribute('data-target-frame', targetFrameId);
+                    frameDesignModal.style.display = 'flex';
+                }
+            });
+
+            // Back from Design Modal to Options Modal
+            backToOptionsIcon.addEventListener('click', () => {
+                const targetFrameId = frameDesignModal.getAttribute('data-target-frame');
+                frameDesignModal.style.display = 'none';
+                showFrameOptionsModal(targetFrameId); 
+            });
+            
+            // Close Design Modal 
+            closeDesignIcon.addEventListener('click', () => {
+                frameDesignModal.style.display = 'none';
+                addStickerBtn.style.display = 'flex';
+            });
+
+
+            // --- Frame Design Live Updates ---
+            
+            // Frame Width Slider Handler
+            frameWidthSlider.addEventListener('input', (e) => {
+                const width = parseInt(e.target.value);
+                const targetFrameId = frameDesignModal.getAttribute('data-target-frame');
+                const activeFrame = frames.find(f => f.id === targetFrameId);
+                
+                if (activeFrame) {
+                    activeFrame.design.width = width;
+                    widthValueSpan.textContent = width;
+                    updateFrameDOM(activeFrame); 
+                }
+            });
+            
+            // Swatch Click Handler
+            colorSwatchContainer.addEventListener('click', (e) => {
+                const swatch = e.target.closest('.color-swatch');
+                if (!swatch) return;
+
+                const color = swatch.getAttribute('data-color');
+                const targetFrameId = frameDesignModal.getAttribute('data-target-frame');
+                const activeFrame = frames.find(f => f.id === targetFrameId);
+                
+                if (activeFrame) {
+                    activeFrame.design.color = color;
+                    frameColorInput.value = color; 
+                    setActiveSwatch(color); 
+                    updateFrameDOM(activeFrame); 
+                }
+            });
+            
+            // Native Color Picker Change Handler
+            nativeColorPicker.addEventListener('input', (e) => {
+                const color = e.target.value.toUpperCase();
+                const targetFrameId = frameDesignModal.getAttribute('data-target-frame');
+                const activeFrame = frames.find(f => f.id === targetFrameId);
+                
+                if (activeFrame) {
+                    activeFrame.design.color = color;
+                    frameColorInput.value = color;
+                    // Clear all swatches and let the color picker handle the active color implicitly
+                    setActiveSwatch(color); 
+                    updateFrameDOM(activeFrame);
+                }
+            });
+
+
+            // --- Capture Logic (Updated to handle dynamic border width/color) ---
+            function captureFrame() {
+                if (frames.length === 0) {
+                    showMessage("Please add a frame using the '+' button before capturing.", 3000);
+                    return;
+                }
+
+                captureBtn.classList.add('loader');
+
+                // 1. Setup Canvas based on video resolution
+                const intrinsicWidth = video.videoWidth;
+                const intrinsicHeight = video.videoHeight;
+                captureCanvas.width = intrinsicWidth;
+                captureCanvas.height = intrinsicHeight;
+                ctx.clearRect(0, 0, intrinsicWidth, intrinsicHeight);
+                ctx.drawImage(video, 0, 0, intrinsicWidth, intrinsicHeight); // Draw Video Background
+
+                const clientWidth = video.clientWidth;
+                const clientHeight = video.clientHeight;
+
+                // Scaling factors between display size and intrinsic video size
+                const scaleFactorX = intrinsicWidth / clientWidth;
+                const scaleFactorY = intrinsicHeight / clientHeight;
+
+                const canvasCenterX = intrinsicWidth / 2;
+                const canvasCenterY = intrinsicHeight / 2;
+                
+                // 2. Draw ALL Frames
+                frames.forEach(frame => {
+                    const frameElement = document.querySelector(`.art-frame[data-frame-id="${frame.id}"]`);
+                    if (!frameElement) return;
+
+                    // Calculate displayed size of the DOM element (including fixed CSS size)
+                    const displayedWidth = frameElement.offsetWidth;
+                    const displayedHeight = frameElement.offsetHeight;
+                    
+                    const borderWidthPx = frame.design.width; 
+                    const borderColor = frame.design.color;
+                    
+                    const frameDrawWidth = displayedWidth * scaleFactorX * frame.scale;
+                    const frameDrawHeight = displayedHeight * scaleFactorY * frame.scale;
+
+                    const borderWidthCanvas = borderWidthPx * scaleFactorX * frame.scale; 
+
+                    const scaledX = frame.x * scaleFactorX;
+                    const scaledY = frame.y * scaleFactorY;
+
+                    ctx.save();
+                    
+                    ctx.translate(canvasCenterX + scaledX, canvasCenterY + scaledY);
+                    
+                    ctx.rotate(frame.rotation * Math.PI / 180);
+                    
+                    // --- DRAW CONTENT IMAGE FIRST ---
+                    if (frame.imageElement) {
+                         const innerWidth = frameDrawWidth - 2 * borderWidthCanvas;
+                         const innerHeight = frameDrawHeight - 2 * borderWidthCanvas;
+
+                         ctx.drawImage(
+                            frame.imageElement,
+                            -innerWidth / 2, 
+                            -innerHeight / 2, 
+                            innerWidth, 
+                            innerHeight
+                        );
+                    }
+                    
+                    // --- DRAW FRAME OUTLINE SECOND ---
+                    ctx.strokeStyle = borderColor; 
+                    ctx.lineWidth = borderWidthCanvas;
+                    
+                    ctx.strokeRect(
+                        -frameDrawWidth / 2, 
+                        -frameDrawHeight / 2, 
+                        frameDrawWidth, 
+                        frameDrawHeight
+                    );
+                    
+                    ctx.restore();
+                });
+
+
+                // 3. Generate image
+                captureCanvas.toBlob(blob => {
+                    captureBtn.classList.remove('loader');
+
+                    if (!blob) {
+                        showMessage("Capture failed: Unable to create image blob.", 3000);
+                        return;
+                    }
+                    const url = URL.createObjectURL(blob);
+                    const newWindow = window.open(url);
+                    if (!newWindow) {
+                        showMessage("Capture failed: Pop-ups blocked. Please allow pop-ups for image preview.", 5000);
+                        URL.revokeObjectURL(url);
+                        return;
+                    }
+                }, 'image/png');
+            }
+
+
+            // --- Global Event Listeners (for continuous movement) ---
+            window.addEventListener('pointermove', pointerMove);
+            window.addEventListener('pointerup', pointerEnd);
+            window.addEventListener('pointercancel', pointerEnd);
+
+            // --- Other Event Listeners ---
+            captureBtn.addEventListener('click', captureFrame);
+
+            // Start the camera when the window loads
+            window.onload = startCamera;
+        }
+
+        // --- Desktop Demo Logic (Unmodified) ---
+        if (getDeviceType() === 'desktop') {
+            const bedroomSrc = "../../media/laptop-demo.jpg?t=88";
+            const wallArtSrc = "asset.png?t=54";
+
+            const bedroomImage = document.getElementById('bedroomImage');
+            const wallArtDiv = document.getElementById('wallArt');
+            const phone = document.getElementById('phone');
+            const imageContainer = document.getElementById('imageContainer');
+
+            bedroomImage.src = bedroomSrc;
+            wallArtDiv.style.backgroundImage = `url(${wallArtSrc})`;
+
+            let toLeft = true;
+            let step = 0;
+            let rotated = false;
+            let paused = false;
+            let slideInterval, wallArtInterval;
+
+            function slideImage() {
+                if (paused) return;
+                if (!rotated) {
+                    imageContainer.style.transform = toLeft ? "translateX(-70px)" : "translateX(0)";
+                } else {
+                    imageContainer.style.transform = toLeft ? "translateY(-70px)" : "translateY(0)";
+                }
+                toLeft = !toLeft;
+            }
+
+            function animateWallArt() {
+                if (paused) return;
+                switch (step) {
+                    case 0:
+                        wallArtDiv.style.transform = "scale(0.6) translateY(-30%) ";
+                        break;
+                    case 1:
+                        wallArtDiv.style.transform = "scale(0.4) translateY(-40%) ";
+                        break;
+                    case 2:
+                        wallArtDiv.style.transform = "scale(0.35) translateY(-18%) ";
+                        break;
+                    case 3:
+                        wallArtDiv.style.transform = "scale(0.54) translateY(-29%) ";
+                        break;
+                    case 4:
+                        wallArtDiv.style.transform = "scale(0.35) translateY(-35%) ";
+                        break;
+                    case 5:
+                        wallArtDiv.style.transform = "scale(0.38) translateY(-27%) ";
+                        break;
+                    case 6:
+                        wallArtDiv.style.transform = "scale(0.5) translateY(-32%) ";
+                        break;
+                    case 7:
+                        wallArtDiv.style.transform = "scale(0.4) translateY(-22%) ";
+                        break;
+                    case 8:
+                        wallArtDiv.style.transform = "scale(0.55) translateY(-19%) ";
+                        break;
+                    case 9:
+                        wallArtDiv.style.transform = "scale(0.4) translateY(-25%) ";
+                        break;
+
+                }
+                step = (step + 1) % 10;
+            }
+
+            function startAnimations() {
+                slideInterval = setInterval(slideImage, 5000);
+                wallArtInterval = setInterval(animateWallArt, 5000);
+                slideImage();
+                animateWallArt();
+            }
+
+            function stopAnimations() {
+                paused = true;
+                clearInterval(slideInterval);
+                clearInterval(wallArtInterval);
+            }
+
+            // Start animations initially
+            setTimeout(startAnimations, 2500);
+        }
+
+    </script>
+</body>
+
+</html>
+
+
