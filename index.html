@@ -709,18 +709,29 @@
 
     <script>
 
-        // Initialize the custom color picker
-const colorPicker = AColorPicker.from('.picker')
-  .on('change', (picker, color) => {
-    // Update frame color on change
-    const targetFrameId = frameDesignModal.getAttribute('data-target-frame');
+window.addEventListener('DOMContentLoaded', () => {
+  const colorPicker = AColorPicker.from('.picker')
+    .on('change', (picker, color) => {
+      // Update frame color on change
+      const targetFrameId = frameDesignModal.getAttribute('data-target-frame');
+      const activeFrame = frames.find(f => f.id === targetFrameId);
+      if (activeFrame) {
+        activeFrame.design.color = color.hex;
+        setActiveSwatch(color.hex);
+        drawActiveFrame(activeFrame);
+      }
+    });
+  
+  // Set initial color when opening design modal
+  frameDesignBtn.addEventListener('click', () => {
+    const targetFrameId = frameOptionsModal.getAttribute('data-target-frame');
     const activeFrame = frames.find(f => f.id === targetFrameId);
     if (activeFrame) {
-      activeFrame.design.color = color.hex;
-      setActiveSwatch(color.hex);
-      drawActiveFrame(activeFrame);
+      colorPicker.setColor(activeFrame.design.color);
     }
   });
+});
+
 
 // Optional: set initial color of the picker when Frame Design modal opens
 frameDesignBtn.addEventListener('click', () => {
