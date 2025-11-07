@@ -780,7 +780,7 @@
             const activePointers = new Map();
             let initialDistance = null;
             let initialAngle = null;
-            const LONG_PRESS_DURATION = 3000; 
+            const LONG_PRESS_DURATION = 1000; 
             const MOVEMENT_TOLERANCE = 10; 
             
             // Helper to show temporary messages
@@ -1234,26 +1234,28 @@
             // --- Frame Design Modal Transitions and Logic ---
             
             // Transition from Options Modal to Design Modal
-            frameDesignBtn.addEventListener('click', () => {
-                const targetFrameId = frameOptionsModal.getAttribute('data-target-frame');
-                const activeFrame = frames.find(f => f.id === targetFrameId);
-                
-                if (activeFrame) {
-                    frameOptionsModal.style.display = 'none';
-                    
-                    // 1. Load current design state into controls
-                    frameWidthSlider.value = activeFrame.design.width;
-                    widthValueSpan.textContent = activeFrame.design.width;
-                    frameColorInput.value = activeFrame.design.color;
-                    
-                    // 2. Set active swatch and native picker value
-                    setActiveSwatch(activeFrame.design.color);
 
-                    // 3. Show the design modal
-                    frameDesignModal.setAttribute('data-target-frame', targetFrameId);
-                    frameDesignModal.style.display = 'flex';
-                }
-            });
+            frameDesignBtn.addEventListener('click', () => {
+  const targetFrameId = frameOptionsModal.getAttribute('data-target-frame');
+  const activeFrame = frames.find(f => f.id === targetFrameId);
+  if (activeFrame) {
+    frameOptionsModal.style.display = 'none';
+
+    // Load current design state
+    frameWidthSlider.value = activeFrame.design.width;
+    widthValueSpan.textContent = activeFrame.design.width;
+    frameColorInput.value = activeFrame.design.color;
+    setActiveSwatch(activeFrame.design.color);
+
+    // Set frameDesignModal size equal to frameOptionsModal size
+    frameDesignModal.style.width = frameOptionsModal.clientWidth + 'px';
+    frameDesignModal.style.height = frameOptionsModal.clientHeight + 'px';
+
+    frameDesignModal.setAttribute('data-target-frame', targetFrameId);
+    frameDesignModal.style.display = 'flex';
+  }
+});
+
 
             // Back from Design Modal to Options Modal
             backToOptionsIcon.addEventListener('click', () => {
